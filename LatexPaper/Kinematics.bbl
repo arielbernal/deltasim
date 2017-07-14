@@ -1,0 +1,81 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{00}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{{\tt DOI:}\penalty0{#1}\ }
+  \fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[\protect\citeauthoryear{Gauthami}{Gauthami}{2017}]%
+        {OpenVXStandard:2017}
+\bibfield{author}{\bibinfo{person}{S. Gauthami}.}
+  \bibinfo{year}{2017}\natexlab{}.
+\newblock \bibinfo{title}{The Khronos {OpenVX 1.1} Specification}.
+\newblock \bibinfo{howpublished}{The Khronos OpenVX Working Group}.
+  (\bibinfo{year}{2017}).
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Munshi}{Munshi}{2012}]%
+        {OpenCLStandard:2012}
+\bibfield{author}{\bibinfo{person}{A. Munshi}.}
+  \bibinfo{year}{2012}\natexlab{}.
+\newblock \bibinfo{title}{{OpenCL} 1.2 Specification}.
+\newblock \bibinfo{howpublished}{The Khronos OpenCL Working Group}.
+  (\bibinfo{year}{2012}).
+\newblock
+\showURL{%
+\url{http://www.khronos.org/registry/cl/specs/opencl-1.2.pdf}}
+
+
+\bibitem[\protect\citeauthoryear{Rainey, Villarreal, Dedeoglu, Pulli, Lepley,
+  and Brill}{Rainey et~al\mbox{.}}{2014}]%
+        {Rainey:2014}
+\bibfield{author}{\bibinfo{person}{Erik Rainey}, \bibinfo{person}{Jesse
+  Villarreal}, \bibinfo{person}{Goksel Dedeoglu}, \bibinfo{person}{Kari Pulli},
+  \bibinfo{person}{Thierry Lepley}, {and} \bibinfo{person}{Frank Brill}.}
+  \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{Addressing System-Level Optimization with OpenVX
+  Graphs}. In \bibinfo{booktitle}{{\em Proceedings of the 2014 IEEE Conference
+  on Computer Vision and Pattern Recognition Workshops}} {\em
+  (\bibinfo{series}{CVPRW '14})}. \bibinfo{publisher}{IEEE Computer Society},
+  \bibinfo{address}{Washington, DC, USA}, \bibinfo{pages}{658--663}.
+\newblock
+\showISBNx{978-1-4799-4308-1}
+\showDOI{%
+\url{https://doi.org/10.1109/CVPRW.2014.100}}
+
+
+\end{thebibliography}
