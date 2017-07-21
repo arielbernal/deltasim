@@ -65,7 +65,7 @@ public:
       draw_axes_positive(500, 500, 500);
       glEnable(GL_LIGHTING);
       
-      deltaGL.render();
+      // deltaGL.render();
 
       glEnable(GL_BLEND);
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -210,8 +210,16 @@ void mouse_passive_motion(int x, int y) {
 
 void normal_keys(unsigned char key, int x, int y) {
   switch (key) {
-  case 'm':
+  case 'm': {
     printer.surfaceMap();
+      // DeltaGeometry geo;
+      // float za, zb, zc;
+      // float x, y, z;
+      // printer.inverseKinematics(10, 10, 10, za, zb, zc, geo);
+      // printf("IK(%f, %f, %f)\n", za, zb, zc);
+      // printer.forwardKinematics(za, zb, zc, x, y, z, geo);
+      // printf("FK(%f, %f, %f)\n", x, y, z);
+    }
     break;    
   case '1':
     errMat = 0;
@@ -232,37 +240,37 @@ void normal_keys(unsigned char key, int x, int y) {
     deltaGL.setRenderMode(DeltaPrinterGL::SIMPLIFIED);
     break;
   case 'a':
-    printer.setCarriages(400, 400, 400);
+    //printer.setCarriages(400, 400, 400);
     break;
   case 'z':
-    printer.moveCarriages(-10, 0, 0);
+    //printer.moveCarriages(-10, 0, 0);
     break;    
   case 's':
-    printer.moveCarriages(0, 10, 0);
+    //printer.moveCarriages(0, 10, 0);
     break;
   case 'x':
-    printer.moveCarriages(0, -10, 0);
+    //printer.moveCarriages(0, -10, 0);
     break;    
   case 'd':
-    printer.moveCarriages(0, 0, 10);
+    //printer.moveCarriages(0, 0, 10);
     break;
   case 'c':
-    printer.moveCarriages(0, 0, -10);
+    //printer.moveCarriages(0, 0, -10);
     break;
   case 'f':
-    printer.moveCarriages(10, 10, 10);
+    //printer.moveCarriages(10, 10, 10);
     break;
   case 'v':
-    printer.moveCarriages(-10, -10, -10);
+    //printer.moveCarriages(-10, -10, -10);
     break;
   case 't':
-    printer.setXYZ(0, 180, 0);
+    //printer.setXYZ(0, 180, 0);
     break;    
   case 'y':
-    printer.setXYZ(0, 0, 0);
+    //printer.setXYZ(0, 0, 0);
     break;    
   case 'u':
-    printer.setXYZ(0, 0, 30.492798);
+    //printer.setXYZ(0, 0, 30.492798);
     break;        
   case 27:
     glutLeaveMainLoop();

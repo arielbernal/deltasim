@@ -8,7 +8,6 @@ static float toRad(float deg) {
   return deg * M_PI / 180;
 }
 
-
 struct DeltaGeometry {
   // Geometry description ------------------------------------------------------------------------
   float DeltaRadius = 180.0f;     // from carriage joint to center (of the printer)
@@ -18,6 +17,7 @@ struct DeltaGeometry {
   float Gamma = 330;              // angle from x-axis to C tower 
   float RodLength = 360;          // rod length from joint to joint
   float EffectorOffset = 35;      // from center of the effector to side (center of joints)
+  float RodRadius = 180;          // from carriage joint to effector joint
   float NozzleHeight = 40;        // from tip of the hot-end nozzle to center of the effector plane
   float RadiusCorrectionA = 0;    // Delta radius correction A tower
   float RadiusCorrectionB = 0;    // Delta radius correction B tower
@@ -28,98 +28,30 @@ struct DeltaGeometry {
   float TowerAOffset = 0;         // Tower A offset
   float TowerBOffset = 0;         // Tower B offset
   float TowerCOffset = 0;         // Tower C offset
-
-  // ------------- radians
-  float rAlpha = toRad(Alpha);
-  float rBeta = toRad(Beta);
-  float rGamma = toRad(Gamma);
-
-
 };
 
 struct DeltaPrinter {
-  /*
-         A           ^
-        / \          |
-       /   \         y
-      /     \        |-----x----->
-     B ----- C
-  */
-  
+/*  =========== Parameter essential for delta calibration ===================
+
+            C, Y-Axis
+            |                        |___| CARRIAGE_HORIZONTAL_OFFSET (recommend set it to 0)
+            |                        |   \------------------------------------------
+            |_________ X-axis        |    \                                        |
+           / \                       |     \  DELTA_DIAGONAL_ROD (length)    Each move this Rod Height
+          /   \                             \                                 is calculated
+         /     \                             \    Carriage is at printer center!   |
+         A      B                             \_____/--------------------------------
+                                              |--| END_EFFECTOR_HORIZONTAL_OFFSET (recommend set it to 0)
+                                         |----| ROD_RADIUS (Horizontal rod pivot to pivot measure)
+                                     |-----------| PRINTER_RADIUS (recommend set it to ROD_RADIUS)
+
+    Column angles are measured from X-axis counterclockwise
+    "Standard" positions: alpha_A = 210, alpha_B = 330, alpha_C = 90
+*/
+
   DeltaGeometry geo;   // Geometry 
   DeltaGeometry tgeo;  // Temporary geometry
-  
-  // Just for rendering
-  const float CarriageOffset = 25.0f;   // from carriage joint to center of the tower
-  const float TowerHeight = 1000;       // vertical frame height
-  const float FrameBottomH = 60;        // 60x20
-  const float FrameBottomW = 20;        //
-  const float FrameTopH = 40;           // 40x20
-  const float FrameTopW = 20;           //
-  const float FrameVerticalH = 40;      // 40x20
-  const float FrameVerticalW = 20;      //
-  const float FrameVerticalOffset = 10; // center of the tower
-  const float BedHeight = 25.3 / 4;     // glass+.. height
-  const float JointsDistance = 40;      // distance between parallel rods
-
-  // Deduced constants --------------------------------------------------------------------------
-  const float TowerRadius = DeltaRadius + CarriageOffset;
-
-  /*
-             /
-            /
-           / Rod     
-      ____/
-      |
-      v
-  */
-  float Le;                     // equivalent rod lenght
-  // Kinematic variables ------------------------------------------------------------------------
-  float Za = ZMax / 2;   // carriage A height
-  float Zb = ZMax / 2;   // carriage B height
-  float Zc = ZMax / 2;   // carriage C height
-  float x, y, z;                // x, y and z of the tip of the nozzle
-  // --------------------------------------------------------------------------------------------
-  float Xa, Ya;
-  float Xb, Yb;
-  float Xc, Yc;
-
-  DeltaPrinter() {
-    // initialize equivalent rod lenght 
-    float Rx = (DeltaRadius - EffectorOffset);
-    float Ry = sqrt(RodLength * RodLength - Rx * Rx);
-    float Lex = DeltaRadius;
-    float Ley = Ry + NozzleHeight;
-    Le = sqrt(Lex * Lex + Ley * Ley);
-    Xa = DeltaRadius * cos(rAlpha);
-    Ya = DeltaRadius * sin(rAlpha);
-    Xb = DeltaRadius * cos(rBeta);
-    Yb = DeltaRadius * sin(rBeta);
-    Xc = DeltaRadius * cos(rGamma);
-    Yc = DeltaRadius * sin(rGamma);    
-  }
-
-
-  void setCarriages(float a, float b, float c) {
-    Za = a;
-    Zb = b;
-    Zc = c;
-    forwardKinematics(Za, Zb, Zc, x, y, z);
-  }
-
-  void moveCarriages(float da, float db, float dc) {
-    Za += da;
-    Zb += db;
-    Zc += dc;
-    forwardKinematics(Za, Zb, Zc, x, y, z);
-  }
-
-  void setXYZ(float xx, float yy, float zz) {
-    x = xx;
-    y = yy;
-    z = zz;
-    inverseKinematics(x, y, z, Za, Zb, Zc);
-  }
+  DeltaPrinter() {}
 
 
   static const int sm_width = 1024;
@@ -130,11 +62,15 @@ struct DeltaPrinter {
   float smxy[sm_height * sm_width];
 
   void surfaceMap() {
+    float DeltaRadius = 180.0f;
     float W = DeltaRadius;
     float x0 = -W;
     float y0 = -W;
     float dx =  2 * W / (sm_width - 1);
     float dy =  2 * W / (sm_height - 1);
+
+    //tgeo.RodLength = geo.RodLength - 0.2;
+    tgeo.TowerAOffset = geo.TowerAOffset - 3;
 
     for (int i = 0; i < sm_height; ++i) {
       for (int j = 0; j < sm_width; ++j) {
@@ -143,8 +79,8 @@ struct DeltaPrinter {
         float zz = 0;
         float za = 0, zb = 0, zc = 0;
         float tx = 0, ty = 0, tz = 0;
-        inverseKinematics(xx, yy, zz, za, zb, zc); 
-        forwardKinematics(za, zb, zc, tx, ty, tz);
+        inverseKinematics(xx, yy, zz, za, zb, zc, tgeo); 
+        forwardKinematics(za, zb, zc, tx, ty, tz, geo);
         int idx = i * sm_width + j;
         
         
@@ -163,34 +99,51 @@ struct DeltaPrinter {
     }
   }
 
+
   void inverseKinematics(float x, float y, float z, float &Za, float &Zb, float &Zc, DeltaGeometry& geo) {
-    float R2a = (geo.RodLength + geo.DiagonalCorrectionA) * (geo.RodLength + geo.DiagonalCorrectionA);
-    float R2b = (geo.RodLength + geo.DiagonalCorrectionB) * (geo.RodLength + geo.DiagonalCorrectionB);
-    float R2c = (geo.RodLength + geo.DiagonalCorrectionC) * (geo.RodLength + geo.DiagonalCorrectionC);
-    float rax = cos(geo.rAlpha) * (geo.DeltaRadius + geo.RadiusCorrectionA - geo.EffectorOffset) - x;
-    float ray = sin(geo.rAlpha) * (geo.DeltaRadius + geo.RadiusCorrectionA - geo.EffectorOffset) - y;
-    float rbx = cos(geo.rBeta) * (geo.DeltaRadius + geo.RadiusCorrectionB - geo.EffectorOffset) - x;
-    float rby = sin(geo.rBeta) * (geo.DeltaRadius + geo.RadiusCorrectionB - geo.EffectorOffset) - y;
-    float rcx = cos(geo.rGamma) * (geo.DeltaRadius + geo.RadiusCorrectionC - geo.EffectorOffset) - x;
-    float rcy = sin(geo.rGamma) * (geo.DeltaRadius + geo.RadiusCorrectionC - geo.EffectorOffset) - y;
-    Za = z + geo.TowerAOffset + geo.NozzleHeight + sqrt(R2a - rax * rax - ray * ray);
-    Zb = z + geo.TowerBOffset + geo.NozzleHeight + sqrt(R2b - rbx * rbx - rby * rby);    
-    Zc = z + geo.TowerCOffset + geo.NozzleHeight + sqrt(R2c - rcx * rcx - rcy * rcy);
+    float RLa = geo.RodLength + geo.DiagonalCorrectionA;
+    float RLb = geo.RodLength + geo.DiagonalCorrectionB;
+    float RLc = geo.RodLength + geo.DiagonalCorrectionC;
+    float Ra = geo.RodRadius + geo.RadiusCorrectionA;
+    float Rb = geo.RodRadius + geo.RadiusCorrectionB;
+    float Rc = geo.RodRadius + geo.RadiusCorrectionC;
+    float rAlpha = toRad(geo.Alpha);
+    float rBeta = toRad(geo.Beta);
+    float rGamma = toRad(geo.Gamma);
+    float rax = cos(rAlpha) * Ra - x;
+    float ray = sin(rAlpha) * Ra - y;
+    float rbx = cos(rBeta)  * Rb - x;
+    float rby = sin(rBeta)  * Rb - y;
+    float rcx = cos(rGamma) * Rc - x;
+    float rcy = sin(rGamma) * Rc - y;
+    Za = z + geo.TowerAOffset + sqrt(RLa * RLa - rax * rax - ray * ray);
+    Zb = z + geo.TowerBOffset + sqrt(RLb * RLb - rbx * rbx - rby * rby);    
+    Zc = z + geo.TowerCOffset + sqrt(RLc * RLc - rcx * rcx - rcy * rcy);
   }
 
-  void forwardKinematics(float Za, float Zb, float Zc, float &x, float &y, float &z) {
+  void forwardKinematics(float Za, float Zb, float Zc, float &x, float &y, float &z, DeltaGeometry& geo) {
     // Using real geometry for forward kinematics
     using namespace svector;
-    float rax = cos(rAlpha) * EffectorOffset;
-    float ray = sin(rAlpha) * EffectorOffset;
-    float rbx = cos(rBeta) * EffectorOffset;
-    float rby = sin(rBeta) * EffectorOffset;
-    float rcx = cos(rGamma) * EffectorOffset;
-    float rcy = sin(rGamma) * EffectorOffset;
+    float rAlpha = toRad(geo.Alpha);
+    float rBeta = toRad(geo.Beta);
+    float rGamma = toRad(geo.Gamma);
+    float RLa = geo.RodLength + geo.DiagonalCorrectionA;
+    float RLb = geo.RodLength + geo.DiagonalCorrectionB;
+    float RLc = geo.RodLength + geo.DiagonalCorrectionC;
+    float Ra = geo.RodRadius + geo.RadiusCorrectionA;
+    float Rb = geo.RodRadius + geo.RadiusCorrectionB;
+    float Rc = geo.RodRadius + geo.RadiusCorrectionC;
 
-    float4 P2(Xb - rbx, Yb - rby, Zb);
-    float4 P3(Xc - rcx, Yc - rcy, Zc);
-    float4 P1(Xa - rax, Ya - ray, Za);
+    float Xa = cos(rAlpha) * Ra;
+    float Ya = sin(rAlpha) * Ra;
+    float Xb = cos(rBeta) * Rb;
+    float Yb = sin(rBeta) * Rb;
+    float Xc = cos(rGamma) * Rc;
+    float Yc = sin(rGamma) * Rc;
+
+    float4 P1(Xa, Ya, Za + geo.TowerAOffset);
+    float4 P2(Xb, Yb, Zb + geo.TowerBOffset);
+    float4 P3(Xc, Yc, Zc + geo.TowerCOffset);
     
     float d = norm(P2 - P1);
     float4 ex = (P2 - P1) / d;
@@ -200,12 +153,12 @@ struct DeltaPrinter {
     float j = dot3d(ey, P3 - P1);
     float4 ez = cross3d(ex, ey);
 
-    float xx = d / 2;
-    float yy = (i * i + j * j - 2 * i * xx) / (2 * j);
-    float zz = sqrt(RodLength * RodLength - xx * xx - yy * yy);
+    float xx = (RLa * RLa - RLb * RLb + d * d) / (2 * d);
+    float yy = (RLa * RLa - RLc * RLc + i * i + j * j - 2 * i * xx) / (2 * j);
+    float zz = sqrt(RLa * RLa - xx * xx - yy * yy);
 
     float4 p = P1 + xx * ex + yy * ey - zz * ez;
-    x = p.x; y = p.y; z = p.z - NozzleHeight;
+    x = p.x; y = p.y; z = p.z;
   }
 
 };

@@ -38,7 +38,7 @@ public:
   void setRenderMode(int i) {
     renderMode = i;
   }
-
+/*
   void render() {
     drawBed();
     drawFrame();
@@ -52,6 +52,7 @@ public:
       drawNozzle();
     }
   }
+  */
   void colorNode(float ColorVal, float ColorMin, float ColorMax, float& r, float& g, float& b) {
     if (ColorVal<ColorMin) {r = 0; g = 0; b = 1; }
     if (ColorVal>ColorMax) {r = 1; g = 0; b = 0; }
@@ -126,6 +127,8 @@ public:
     glDisable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
   }
+
+  /*
 
   void drawBed() {
     chrome.active();
@@ -258,7 +261,7 @@ public:
       drawCone(delta.NozzleHeight, 0, 6);
     glPopMatrix();    
   }
-
+*/
 
 private:
   DeltaPrinter& delta;
