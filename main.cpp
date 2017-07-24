@@ -208,18 +208,15 @@ void mouse_passive_motion(int x, int y) {
   view.mouse_passive_motion(x, y1); 
 }
 
+
+DeltaGeometry FKGeo;
+DeltaGeometry IKGeo;
+
+
 void normal_keys(unsigned char key, int x, int y) {
   switch (key) {
-  case 'm': {
-    printer.surfaceMap();
-      // DeltaGeometry geo;
-      // float za, zb, zc;
-      // float x, y, z;
-      // printer.inverseKinematics(10, 10, 10, za, zb, zc, geo);
-      // printf("IK(%f, %f, %f)\n", za, zb, zc);
-      // printer.forwardKinematics(za, zb, zc, x, y, z, geo);
-      // printf("FK(%f, %f, %f)\n", x, y, z);
-    }
+  case 'm':
+    printer.surfaceMap(IKGeo, FKGeo);
     break;    
   case '1':
     errMat = 0;
@@ -255,8 +252,9 @@ void normal_keys(unsigned char key, int x, int y) {
     //printer.moveCarriages(0, 0, 10);
     break;
   case 'c':
-    //printer.moveCarriages(0, 0, -10);
-    break;
+      printer.calibrate(IKGeo, FKGeo);
+      printer.surfaceMap(IKGeo, FKGeo);
+      break;
   case 'f':
     //printer.moveCarriages(10, 10, 10);
     break;
@@ -298,6 +296,10 @@ void init_glut_window(int argc, char *argv[]) {
   glutMouseWheelFunc(mouse_wheel);
   glutReshapeFunc(reshape);
   deltaGL.init();
+  
+  printer.setGeo(FKGeo);
+  printer.surfaceMap(IKGeo, FKGeo);
+
 
   glutMainLoop();
 }

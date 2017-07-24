@@ -10,15 +10,12 @@ static float toRad(float deg) {
 
 struct DeltaGeometry {
   // Geometry description ------------------------------------------------------------------------
-  float DeltaRadius = 180.0f;     // from carriage joint to center (of the printer)
-  float ZMax = 800;               // from bed to end-stop
+  float RodRadius = 160;       // from carriage joint to effector joint  
   float Alpha = 90;               // angle from x-axis to A tower
   float Beta = 210;               // angle from x-axis to B tower
   float Gamma = 330;              // angle from x-axis to C tower 
   float RodLength = 360;          // rod length from joint to joint
-  float EffectorOffset = 35;      // from center of the effector to side (center of joints)
-  float RodRadius = 180;          // from carriage joint to effector joint
-  float NozzleHeight = 40;        // from tip of the hot-end nozzle to center of the effector plane
+
   float RadiusCorrectionA = 0;    // Delta radius correction A tower
   float RadiusCorrectionB = 0;    // Delta radius correction B tower
   float RadiusCorrectionC = 0;    // Delta radius correction C tower
@@ -49,10 +46,7 @@ struct DeltaPrinter {
     "Standard" positions: alpha_A = 210, alpha_B = 330, alpha_C = 90
 */
 
-  DeltaGeometry geo;   // Geometry 
-  DeltaGeometry tgeo;  // Temporary geometry
   DeltaPrinter() {}
-
 
   static const int sm_width = 1024;
   static const int sm_height = 1024;
@@ -61,16 +55,23 @@ struct DeltaPrinter {
   float smz[sm_height * sm_width];
   float smxy[sm_height * sm_width];
 
-  void surfaceMap() {
-    float DeltaRadius = 180.0f;
+
+
+  void setGeo(DeltaGeometry& Geo) {
+    // Geo.TowerAOffset = -1;
+    // Geo.TowerBOffset = 2.5;
+    // Geo.TowerCOffset = -1.5;
+    // Geo.RodRadius = 158;
+    Geo.RodLength = 363;
+  }
+
+  void surfaceMap(DeltaGeometry& IKGeo, DeltaGeometry& FKGeo) {
+    float DeltaRadius = FKGeo.RodRadius;
     float W = DeltaRadius;
     float x0 = -W;
     float y0 = -W;
     float dx =  2 * W / (sm_width - 1);
     float dy =  2 * W / (sm_height - 1);
-
-    //tgeo.RodLength = geo.RodLength - 0.2;
-    tgeo.TowerAOffset = geo.TowerAOffset - 3;
 
     for (int i = 0; i < sm_height; ++i) {
       for (int j = 0; j < sm_width; ++j) {
@@ -79,28 +80,88 @@ struct DeltaPrinter {
         float zz = 0;
         float za = 0, zb = 0, zc = 0;
         float tx = 0, ty = 0, tz = 0;
-        inverseKinematics(xx, yy, zz, za, zb, zc, tgeo); 
-        forwardKinematics(za, zb, zc, tx, ty, tz, geo);
-        int idx = i * sm_width + j;
-        
-        
-        if (sqrt(xx * xx + yy * yy) >= DeltaRadius)  {
+        inverseKinematics(xx, yy, zz, za, zb, zc, IKGeo); 
+        forwardKinematics(za, zb, zc, tx, ty, tz, FKGeo);
+        int idx = (sm_height - i - 1) * sm_width + j;
+        if (sqrt(xx * xx +  yy * yy) >= DeltaRadius)  {
           smx[idx] = 30000;
           smy[idx] = 30000;
           smz[idx] = 30000;
           smxy[idx] = 30000;
         } else {
-          smx[idx] = fabs(xx - tx);
-          smy[idx] = fabs(yy - ty);
+          smx[idx] = (tx - xx);
+          smy[idx] = (ty - yy);
           smxy[idx] = sqrt(smx[idx] * smx[idx] + smy[idx] * smy[idx]);
-          smz[idx] = zz - tz;
+          smz[idx] = tz - zz;
         }
       }
     }
   }
 
 
-  void inverseKinematics(float x, float y, float z, float &Za, float &Zb, float &Zc, DeltaGeometry& geo) {
+  void calibrate(DeltaGeometry& IKGeo, DeltaGeometry& FKGeo) {
+    using namespace svector;
+    float Alpha = 90;
+    float Beta = 210;
+    float Gamma = 330;
+    float r = 160;
+    float4 r0(0, 0, 0);
+    float4 rA0(r * cos(toRad(Alpha)), r * sin(toRad(Alpha)), 0);
+    float4 rA1(-r * cos(toRad(Alpha)), -r * sin(toRad(Alpha)), 0);
+    float4 rB0(r * cos(toRad(Beta)), r * sin(toRad(Beta)), 0);
+    float4 rB1(-r * cos(toRad(Beta)), -r * sin(toRad(Beta)), 0);
+    float4 rC0(r * cos(toRad(Gamma)), r * sin(toRad(Gamma)), 0);
+    float4 rC1(-r * cos(toRad(Gamma)), -r * sin(toRad(Gamma)), 0);
+
+    float k = IKGeo.RodRadius / r;
+    float ZA0 = (FK(IK(rA0, IKGeo), FKGeo) - rA0).z;
+    float ZA1 = (FK(IK(rA1, IKGeo), FKGeo) - rA1).z;
+    float DZA = (ZA0 * (1 + k) + ZA1 * (1 - k)) / 2;
+
+    float ZB0 = (FK(IK(rB0, IKGeo), FKGeo) - rB0).z;
+    float ZB1 = (FK(IK(rB1, IKGeo), FKGeo) - rB1).z;
+    float DZB = (ZB0 * (1 + k) + ZB1 * (1 - k)) / 2;
+
+    float ZC0 = (FK(IK(rC0, IKGeo), FKGeo) - rC0).z;
+    float ZC1 = (FK(IK(rC1, IKGeo), FKGeo) - rC1).z;
+    float DZC = (ZC0 * (1 + k) + ZC1 * (1 - k)) / 2;
+
+    float ZR0 = (FK(IK(r0, IKGeo), FKGeo) - r0).z;
+    float ZT = (ZA0 + ZA1 + ZB0 + ZB1 + ZC0 + ZC1) / 6;
+
+    printf("--------------------------------------------\n");
+    printf("IKGeo.TowerAOffset = %f, ZA0 = %f, ZA1 = %f, DZA = %f\n", IKGeo.TowerAOffset, ZA0, ZA1, DZA);
+    printf("IKGeo.TowerBOffset = %f, ZB0 = %f, ZB1 = %f, DZB = %f\n", IKGeo.TowerBOffset, ZB0, ZB1, DZB);
+    printf("IKGeo.TowerCOffset = %f, ZC0 = %f, ZC1 = %f, DZC = %f\n", IKGeo.TowerCOffset, ZC0, ZC1, DZC);
+    printf("IKGeo.RodRadius = %f,    ZR0 = %f\n", IKGeo.RodRadius, ZR0);
+    printf("IKGeo.RodLength = %f,    ZT = %f\n", IKGeo.RodLength, ZT);
+    IKGeo.TowerAOffset += DZA;
+    IKGeo.TowerBOffset += DZB;
+    IKGeo.TowerCOffset += DZC;
+
+    
+    IKGeo.RodLength -= ZT;
+    if (fabs(ZT) < 0.1) {
+      IKGeo.RodRadius += 1.5 * ZR0;
+    }
+
+
+  }
+
+  svector::float4 IK(const svector::float4 &r, const DeltaGeometry &geo) {
+    svector::float4 Z;
+    inverseKinematics(r.x, r.y, r.z, Z.x, Z.y, Z.z, geo);
+    return Z;
+  }
+
+  svector::float4 FK(const svector::float4 &Z, const DeltaGeometry &geo) {
+    svector::float4 r;
+    forwardKinematics(Z.x, Z.y, Z.z, r.x, r.y, r.z, geo);
+    return r;
+  }
+
+
+  void inverseKinematics(float x, float y, float z, float &Za, float &Zb, float &Zc, const DeltaGeometry& geo) {
     float RLa = geo.RodLength + geo.DiagonalCorrectionA;
     float RLb = geo.RodLength + geo.DiagonalCorrectionB;
     float RLc = geo.RodLength + geo.DiagonalCorrectionC;
@@ -116,13 +177,12 @@ struct DeltaPrinter {
     float rby = sin(rBeta)  * Rb - y;
     float rcx = cos(rGamma) * Rc - x;
     float rcy = sin(rGamma) * Rc - y;
-    Za = z + geo.TowerAOffset + sqrt(RLa * RLa - rax * rax - ray * ray);
-    Zb = z + geo.TowerBOffset + sqrt(RLb * RLb - rbx * rbx - rby * rby);    
-    Zc = z + geo.TowerCOffset + sqrt(RLc * RLc - rcx * rcx - rcy * rcy);
+    Za = z - geo.TowerAOffset + sqrt(RLa * RLa - rax * rax - ray * ray);
+    Zb = z - geo.TowerBOffset + sqrt(RLb * RLb - rbx * rbx - rby * rby);    
+    Zc = z - geo.TowerCOffset + sqrt(RLc * RLc - rcx * rcx - rcy * rcy);
   }
 
-  void forwardKinematics(float Za, float Zb, float Zc, float &x, float &y, float &z, DeltaGeometry& geo) {
-    // Using real geometry for forward kinematics
+  void forwardKinematics(float Za, float Zb, float Zc, float &x, float &y, float &z, const DeltaGeometry& geo) {
     using namespace svector;
     float rAlpha = toRad(geo.Alpha);
     float rBeta = toRad(geo.Beta);
