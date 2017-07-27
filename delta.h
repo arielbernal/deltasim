@@ -10,11 +10,11 @@ static float toRad(float deg) {
 
 struct DeltaGeometry {
   // Geometry description ------------------------------------------------------------------------
-  float RodRadius = 160;       // from carriage joint to effector joint  
+  float RodRadius = 174.50;       // from carriage joint to effector joint  
   float Alpha = 90;               // angle from x-axis to A tower
   float Beta = 210;               // angle from x-axis to B tower
   float Gamma = 330;              // angle from x-axis to C tower 
-  float RodLength = 360;          // rod length from joint to joint
+  float RodLength = 360.40;       // rod length from joint to joint
 
   float RadiusCorrectionA = 0;    // Delta radius correction A tower
   float RadiusCorrectionB = 0;    // Delta radius correction B tower
@@ -99,7 +99,7 @@ struct DeltaPrinter {
   }
 
 
-  void calibrate(DeltaGeometry& IKGeo, DeltaGeometry& FKGeo) {
+  void calibrate1(DeltaGeometry& IKGeo, DeltaGeometry& FKGeo) {
     using namespace svector;
     float Alpha = 90;
     float Beta = 210;
@@ -147,6 +147,90 @@ struct DeltaPrinter {
 
 
   }
+
+
+
+  float cost(DeltaGeometry& IKGeo, DeltaGeometry& FKGeo, svector::float4* v, float* z, int N) {
+      float cost = 0;
+      for (int i = 0; i < N; ++i) {
+        float d = FK(IK(v[i], IKGeo), FKGeo).z - z[i];
+        cost += d * d;
+      }
+      return sqrt(cost) / N;
+  }
+
+  float randf() {
+    return (float)rand() / (RAND_MAX + 1.0f);
+  }
+
+  DeltaGeometry geoNeighbour(DeltaGeometry& geo) {
+    int geoField = rand() % 4;
+    int change = rand() % 2;
+    DeltaGeometry t = geo;
+    switch(geoField) {
+      case 0 : t.TowerAOffset += (change ? 0.1 : -0.1); break;
+      case 1 : t.TowerBOffset += (change ? 0.1 : -0.1); break;
+      case 2 : t.TowerCOffset += (change ? 0.1 : -0.1); break;
+      // case 3 : t.RodRadius *= change ? 0.9 : 1.1; break;
+      // case 4 : t.Alpha *= change ? 0.9 : 1.1; break;
+      // case 5 : t.Beta *= change ? 0.9 : 1.1; break;
+      // case 6 : t.Gamma *= change ? 0.9 : 1.1; break;
+      // case 7 : t.RadiusCorrectionA *= change ? 0.9 : 1.1; break;
+      // case 8 : t.RadiusCorrectionB *= change ? 0.9 : 1.1; break;
+      // case 9 : t.RadiusCorrectionC *= change ? 0.9 : 1.1; break;
+
+    }
+    return t;
+  }
+
+  void calibrate(DeltaGeometry& IKGeo, DeltaGeometry& FKGeo) {
+    using namespace svector;
+    float Alpha = 90;
+    float Beta = 210;
+    float Gamma = 330;
+    float r = 160;
+    static const int N = 7;
+    float4 v[N];
+    v[0] = float4(0, 0, 0);
+    v[1] = float4(r * cos(toRad(Alpha)), r * sin(toRad(Alpha)), 0);
+    v[2] = float4(-r * cos(toRad(Alpha)), -r * sin(toRad(Alpha)), 0);
+    v[3] = float4(r * cos(toRad(Beta)), r * sin(toRad(Beta)), 0);
+    v[4] = float4(-r * cos(toRad(Beta)), -r * sin(toRad(Beta)), 0);
+    v[5] = float4(r * cos(toRad(Gamma)), r * sin(toRad(Gamma)), 0);
+    v[6] = float4(-r * cos(toRad(Gamma)), -r * sin(toRad(Gamma)), 0);
+    float z[N] = { 0.3, -0.1, 0.2, -1.2, -0.5, 1.3, 0.3 };
+
+    DeltaGeometry Geo = FKGeo;
+
+    float T = 1E10;
+    float TMin = 0.1;
+    float TAlpha = 0.99;
+    float old_cost = cost(IKGeo, Geo, v, z, N);
+    float d = 1e-5;
+    printf("Cost = %f\n", old_cost);
+    int NIter = 100;
+    int itotal = 0;
+    while(T > TMin) {
+      int i = 0;
+      while (i < NIter) {
+        DeltaGeometry NewGeo = geoNeighbour(Geo);
+        float new_cost = cost(IKGeo, Geo, v, z, N);
+        if (new_cost == new_cost) { // check if not nan
+          if(new_cost < old_cost || exp(-(new_cost - old_cost) / (d * T)) > randf()) {
+            Geo = NewGeo;
+            old_cost = new_cost;
+            printf("%d Cost = %f T = %f  -  ", itotal, old_cost, T);
+            printf("  OA=%f OB=%f OC=%f\n", Geo.TowerAOffset, Geo.TowerBOffset, Geo.TowerCOffset);
+          }
+          i++;
+          itotal++;
+        }
+      }
+      printf("--------------------------------- T = %f\n", T);
+      T *= TAlpha;
+    }
+  }
+
 
   svector::float4 IK(const svector::float4 &r, const DeltaGeometry &geo) {
     svector::float4 Z;
